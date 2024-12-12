@@ -13,10 +13,10 @@ class NoteServer implements MessageComponentInterface {
 
         // Conexão com o banco de dados
         $this->dbConnection = new mysqli(
-            getenv('MYSQLHOST'), // Host do banco de dados fornecido pelo Railway
-            getenv('MYSQLUSER'), // Usuário do banco
-            getenv('MYSQLPASSWORD'), // Senha do banco
-            getenv('MYSQLDATABASE') // Nome do banco
+            getenv('mysql.railway.internal'), // Host do banco de dados fornecido pelo Railway
+            getenv('root'), // Usuário do banco
+            getenv('fOOYAKfjHVyudHTltvIwuLKsbTzODiWZ'), // Senha do banco
+            getenv('railway') // Nome do banco
         );
 
         if ($this->dbConnection->connect_error) {
