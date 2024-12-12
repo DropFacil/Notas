@@ -12,12 +12,12 @@ class NoteServer implements MessageComponentInterface {
         $this->clients = new \SplObjectStorage;
 
         // Conexão com o banco de dados
-        $this->dbConnection = new mysqli(
-            getenv('mysql.railway.internal'), // Host do banco de dados fornecido pelo Railway
-            getenv('root'), // Usuário do banco
-            getenv('fOOYAKfjHVyudHTltvIwuLKsbTzODiWZ'), // Senha do banco
-            getenv('railway') // Nome do banco
-        );
+        $host = getenv('MYSQLHOST') ?: 'mysql.railway.internal';
+        $user = getenv('MYSQLUSER') ?: 'root';
+        $password = getenv('MYSQLPASSWORD') ?: 'fOOYAKfjHVyudHTltvIwuLKsbTzODiWZ';
+        $dbname = getenv('MYSQLDATABASE') ?: 'railway';
+
+        $this->dbConnection = new mysqli($host, $user, $password, $dbname);
 
         if ($this->dbConnection->connect_error) {
             die("Erro ao conectar com o banco de dados: " . $this->dbConnection->connect_error);
@@ -28,16 +28,28 @@ class NoteServer implements MessageComponentInterface {
         $this->clients->attach($conn);
 
         // Carregar o conteúdo da nota do banco de dados
-        $result = $this->dbConnection->query("SELECT conteudo FROM notas WHERE id = 1");
-        $row = $result->fetch_assoc();
-        $conn->send($row['conteudo']);
+        $query = "SELECT conteudo FROM notas WHERE id = 1";
+        $result = $this->dbConnection->query($query);
+
+        if ($result && $row = $result->fetch_assoc()) {
+            $conn->send($row['conteudo']);
+        } else {
+            $conn->send(""); // Enviar vazio caso não haja nota
+        }
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
         // Atualizar o banco de dados
         $stmt = $this->dbConnection->prepare("UPDATE notas SET conteudo = ? WHERE id = 1");
+        if (!$stmt) {
+            echo "Erro ao preparar a query: " . $this->dbConnection->error . PHP_EOL;
+            return;
+        }
+
         $stmt->bind_param("s", $msg);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            echo "Erro ao executar a query: " . $stmt->error . PHP_EOL;
+        }
 
         // Enviar a mensagem para todos os clientes conectados
         foreach ($this->clients as $client) {
@@ -50,6 +62,7 @@ class NoteServer implements MessageComponentInterface {
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
+        echo "Erro: " . $e->getMessage() . PHP_EOL;
         $conn->close();
     }
 }
